@@ -252,32 +252,50 @@ def log_prediction(input_data, risk_score, risk_tier, decision):
 @app.post("/predict")
 def predict(data: dict):
 
-    # Convert input to DataFrame
-    df = pd.DataFrame([data])
+    try:
+        # ✅ SAFE DEFAULT INPUT HANDLING
+        safe_data = {
+            "person_age": data.get("person_age", 30),
+            "person_income": data.get("person_income", data.get("income", 50000)),
+            "person_home_ownership": data.get("person_home_ownership", "RENT"),
+            "person_emp_length": data.get("person_emp_length", 2),
+            "loan_intent": data.get("loan_intent", "PERSONAL"),
+            "loan_grade": data.get("loan_grade", "C"),
+            "loan_amnt": data.get("loan_amnt", data.get("loan_amount", 10000)),
+            "loan_int_rate": data.get("loan_int_rate", 10),
+            "loan_percent_income": data.get("loan_percent_income", 0.2),
+            "cb_person_default_on_file": data.get("cb_person_default_on_file", "N"),
+            "cb_person_cred_hist_length": data.get("cb_person_cred_hist_length", 5),
+        }
 
-    # Preprocess
-    df = preprocess_data(df)
-    df = df.reindex(columns=model_columns, fill_value=0)
+        # Convert input to DataFrame
+        df = pd.DataFrame([safe_data])
 
-    df = df.astype(float)
+        # Preprocess
+        df = preprocess_data(df)
+        df = df.reindex(columns=model_columns, fill_value=0)
+        df = df.astype(float)
 
+        # Predict
+        prob = model.predict_proba(df)[:, 1][0]
+        risk_score = prob * 100
+        confidence = abs(prob - 0.5) * 200
 
-    # Predict
-    prob = model.predict_proba(df)[:, 1][0]
-    risk_score = prob * 100
-    confidence = abs(prob - 0.5) * 200
+        risk_tier = get_risk_tier(risk_score)
+        decision = loan_decision(risk_score)
+        explanations = get_shap_explanations(df, safe_data)
 
-    risk_tier = get_risk_tier(risk_score)
-    decision = loan_decision(risk_score)
-    explanations = get_shap_explanations(df,data)
+        log_prediction(safe_data, risk_score, risk_tier, decision)
 
-    log_prediction(data, risk_score, risk_tier, decision)
+        return {
+            "risk_score": round(risk_score, 2),
+            "confidence": round(confidence, 2),
+            "risk_tier": risk_tier,
+            "decision": decision,
+            "explanations": explanations
+        }
 
-    return {
-        "input_data": data,
-        "risk_score": round(risk_score, 2),
-        "confidence": round(confidence, 2),
-        "risk_tier": risk_tier,
-        "decision": decision,
-        "explanations": explanations
-    }
+    except Exception as e:
+        return {
+            "error": str(e)
+        }

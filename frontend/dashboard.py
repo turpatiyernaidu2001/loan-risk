@@ -1,9 +1,10 @@
+import requests
 import streamlit as st
 import pandas as pd
 import os
 import json
 import matplotlib.pyplot as plt
-
+API_URL = "https://loan-risk-api-2jne.onrender.com/predict"
 st.title("📊 Loan Risk Portfolio Dashboard")
 
 # 🔹 Load metrics
@@ -85,3 +86,24 @@ else:
     # 🔹 Table
     st.subheader("Recent Applications")
     st.dataframe(filtered_df)
+
+
+st.subheader("🧪 Test Model API")
+
+income = st.number_input("Income")
+loan = st.number_input("Loan Amount")
+
+if st.button("Predict"):
+    payload = {
+        "income": income,
+        "loan_amount": loan
+    }
+
+    response = requests.post(API_URL, json=payload)
+
+    st.write("🔍 Raw Response:", response.text)  # ADD THIS DEBUG LINE
+
+    if response.status_code == 200:
+        st.success(response.json())
+    else:
+        st.error(f"API Error: {response.text}")
