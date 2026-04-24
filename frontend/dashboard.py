@@ -88,22 +88,73 @@ else:
     st.dataframe(filtered_df)
 
 
-st.subheader("🧪 Test Model API")
+st.subheader("🧪 Loan Application Form")
 
-income = st.number_input("Income")
-loan = st.number_input("Loan Amount")
+person_age = st.number_input("Age", min_value=18, max_value=100, value=30)
+
+person_income = st.number_input("Monthly Income", value=50000)
+
+person_home_ownership = st.selectbox(
+    "Home Ownership",
+    ["RENT", "OWN", "MORTGAGE", "OTHER"]
+)
+
+person_emp_length = st.number_input("Employment Length (years)", value=2)
+
+loan_intent = st.selectbox(
+    "Loan Intent",
+    ["PERSONAL", "EDUCATION", "HOMEIMPROVEMENT", "MEDICAL", "VENTURE", "DEBTCONSOLIDATION"]
+)
+
+loan_grade = st.selectbox(
+    "Loan Grade",
+    ["A", "B", "C", "D", "E", "F", "G"]
+)
+
+loan_amnt = st.number_input("Loan Amount", value=10000)
+
+loan_int_rate = st.number_input("Interest Rate", value=10.0)
+
+loan_percent_income = loan_amnt / person_income if person_income != 0 else 0
+
+cb_person_default_on_file = st.selectbox(
+    "Previous Default?",
+    ["N", "Y"]
+)
+
+cb_person_cred_hist_length = st.number_input("Credit History Length", value=5)
+
 
 if st.button("Predict"):
     payload = {
-        "income": income,
-        "loan_amount": loan
+        "person_age": person_age,
+        "person_income": person_income,
+        "person_home_ownership": person_home_ownership,
+        "person_emp_length": person_emp_length,
+        "loan_intent": loan_intent,
+        "loan_grade": loan_grade,
+        "loan_amnt": loan_amnt,
+        "loan_int_rate": loan_int_rate,
+        "loan_percent_income": loan_percent_income,
+        "cb_person_default_on_file": cb_person_default_on_file,
+        "cb_person_cred_hist_length": cb_person_cred_hist_length
     }
 
     response = requests.post(API_URL, json=payload)
 
-    st.write("🔍 Raw Response:", response.text)  # ADD THIS DEBUG LINE
+    st.write("🔍 Raw Response:", response.text)
 
     if response.status_code == 200:
-        st.success(response.json())
+        result = response.json()
+
+        st.success(f"Decision: {result['decision']}")
+        st.info(f"Risk Score: {result['risk_score']}")
+        st.info(f"Confidence: {result['confidence']}")
+        st.warning(f"Risk Tier: {result['risk_tier']}")
+        
+
+        st.subheader("📌 Explanations")
+        for e in result["explanations"]:
+            st.write("•", e)
     else:
-        st.error(f"API Error: {response.text}")
+        st.error("API Error")
